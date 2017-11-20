@@ -56,6 +56,9 @@
 #include <dirent.h>
 #include <time.h>
 #include <libxml/tree.h>
+#include <sys/timeb.h>
+#include <math.h>
+#include <inttypes.h>
 
 #ifndef DISABLE_NOTIFICATIONS
 #include <pthread.h>
@@ -88,6 +91,7 @@ extern int done;
 extern struct cli_options* opts;
 volatile int verb_level = 0;
 volatile int time_commands = 0;
+static int tdiff =0;
 
 void print_version();
 
@@ -3486,11 +3490,51 @@ static volatile int ntf_file_flag = 0; /* flag if the thread specific key is alr
 static void notification_fileprint(time_t eventtime, const char* content) {
 	FILE *f;
 	char t[128];
+	unsigned long t_stamp[1000];//defined array to collect the time stamp differences
 
+	FILE *fptr = fopen("/home/dsp/Desktop/time_stamp.txt","a");
 	t[0] = 0;
+	char *ret;
 	if ((f = (FILE*) pthread_getspecific(ntf_file)) != NULL) {
 		strftime(t, sizeof(t), "%c", localtime(&eventtime));
-		fprintf(f, "eventTime: %s\n%s\n", t, content);
+
+		char buffer[5];
+		fprintf(f, "event Time: %s\n%s\n", t, content);
+
+		struct timeb timer_msec;
+		long long int timestamp_msec; 
+	   
+		struct timeval tm2;
+		gettimeofday(&tm2, NULL);
+		unsigned long long int t_diff[1000];
+	
+		unsigned long long t = 1000 * (tm2.tv_sec) + (tm2.tv_usec) / 1000;
+
+		printf("current time in ms : %llu ms\n", t);
+
+		if(strstr(content, "MON_EVENT_NOTIFICATION") != NULL)
+		   {
+			   char * str;
+			   if((str = strstr(content, "time-stamp")) != NULL)
+			   { 
+				    char * str2 = strstr(str, ">");
+					char * str3 = strtok(str2, "><");
+					printf ("time stamp value recieved: %s\n",str3);
+					unsigned long long int ulli1;
+					ulli1 = strtoull (str3, NULL, 10);
+					printf("Time stamp value in llu format : %llu\n", ulli1);
+
+					printf("time difference: %llu \n", (t-ulli1));
+					
+					unsigned long long toString = (t-ulli1);
+					fprintf(fptr, "ms: %llu, \n", toString); //writing to the file
+					
+					fclose(fptr); //close the file after writing
+				
+
+				}
+					   
+			} 
 		fflush(f);
 	}
 }
